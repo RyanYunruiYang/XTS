@@ -1,148 +1,146 @@
-from network_model import waterfilling
-from util import stochastic_round
+from util import stochastic_round, waterfilling
 
 import numpy as np
-import random
+import math
+from collections import defaultdict
+import matplotlib.pyplot as plt
 
 def debug(s):
-    if(False):
+    debug_on = False
+    if(debug_on):
         print(s)
 
+class Flow:
+    def __init__(self, id, RTT, resources_used):
+        self.id = id
+        self.RTT = RTT
+        self.resources_used = resources_used
 
 class WorldModel:
-    def __init__(self, RTTs, resources, incidence_matrix):
-        self.RTTs = RTTs
-        self.resources = resources 
-        self.incidence_matrix = incidence_matrix
+    def __init__(self, users, resource_capacities):
+        self.users = users
+        self.resources = resource_capacities
+        # Use users .resources_used to create the incidence matrix
+        self.incidence_matrix = np.zeros((len(users), len(resource_capacities)))
+        for i, user in enumerate(users):
+            for resource in user.resources_used:
+                j = list(resource_capacities.keys()).index(resource)
+                self.incidence_matrix[i][j] = 1
 
     def tput(self, n):
-        debug(f"n: {n}")
-        weights = [n[i]/self.RTTs[i] for i in range(len(n))]
+        # debug(f"n: {n}")
+        # debug(f"Weights: {weights}")
+        # debug(f"Resources: {self.resources}")
+        # debug(f"Incidence Matrix: {self.incidence_matrix}")  
+        weights = [n[i]/self.users[i].RTT for i in range(len(n))]
         return waterfilling(weights, self.resources, self.incidence_matrix)
 
 
 class Optimizer:
-    def __init__(self, resources, incidence_matrix, ideal_weights):
-        self.resources = resources 
-        self.incidence_matrix = incidence_matrix
-        self.ideal_weights = ideal_weights
-        self.resource_caps = list(resources.values())        
+    def __init__(self, users, resources, operator_weights):
+        self.users = users
+        self.resources = resources
+        self.operator_weights = operator_weights
 
-    def update(self, throughput, n):
-        delta_n = [{'value': 0, 'priority': 0} for _ in n]
+        # Construct a map from each resource to the users that use it
+        self.resource_users = defaultdict(list)
+        for i, user in enumerate(users):
+            for resource in user.resources_used:
+                self.resource_users[resource].append(i)
 
-        resource_util = [0 for i in range(len(self.resources))]
-        for i in range(len(throughput)):
-            for j in range(len(self.resources)):
-                if (self.incidence_matrix[i][j] == 1):
-                    resource_util[j] += throughput[i]
-        debug(f"resource_util: {resource_util}")
-        # debug(f"self.resource_caps: {self.resource_caps}")
+        # # No Access
+        # - resource caps
 
-        for j in range(len(self.resources)):
-            # With probability 80% we remove a connection from the largest flow,
-            # with probability 20% we scale up all connections by 10%
+    def set_decision(self, decision):
+        self.n = decision
+    
+    def get_decision(self):
+        return self.n
 
-            # If the sum of n on the resource is greater than 50, we scale down
-            # Compute the sum of n on the resource
-            sum_n = 0
-            for i in range(len(n)):
-                if (self.incidence_matrix[i][j] == 1):
-                    sum_n += n[i]
+    def update(self, new_throughput):
+        n = self.n.copy()
 
-            action = 0
-            if (sum_n < 10):
-                action = 1
-            if (sum_n > 100):
-                action = 3
-            if (sum_n >= 10 and sum_n <= 50):
-                if (random.random() < 0.95):
-                    action = 2
-                else:
-                    action = 1
-            if (action == 1):
-                for i in range(len(n)):
-                    if (action > delta_n[i]['priority']):
-                        delta_n[i]['value'] = stochastic_round(n[i] * 0.1)
-                        delta_n[i]['priority'] = action
-            
-            if (action == 2):
-                tputs = {}
-                for i in range(len(throughput)):
-                    if (self.incidence_matrix[i][j] == 1):
-                        tputs[i] = throughput[i] / self.ideal_weights[i]
-                print(f"tputs: {tputs}")
+        print(n)
+        if(sum(n) <= 1000):
+            # Double all connections
+            print("DOUBLE")
+            return [x+2 for x in n]
 
-                index = max(tputs, key=tputs.get)
-                if (action > delta_n[index]['priority']):
-                    delta_n[index]['value'] = -1    
-                    delta_n[index]['priority'] = action
-            
-            if (action == 3):
-                for i in range(len(n)):
-                    delta_n[i]['value'] = -stochastic_round(n[i] * 0.1)
-                    delta_n[i]['priority'] = action
+        # Construct usage allocation for each user
+        usage = [new_throughput[i]/self.operator_weights[i] for i in range(len(self.users))]
 
+        print(self.resource_users)
+        for resource, users_on_resource in self.resource_users.items():
+            print(f"resource: {resource}")
+            print(f"users_on_resource: {users_on_resource}")
 
-        print(delta_n)
-        for i in range(len(n)):
-            n[i] += delta_n[i]['value']
-            if (n[i] <= 2):
-                n[i] = 3
+            # Find the user on the resource with the highest usage
+            max_user = max(users_on_resource, key=lambda user: usage[user])
+            print(f"max_user: {max_user}")
 
+            # Reduce the number of connections for the max user
+            if (n[max_user] >= 2):
+                # n[max_user] -= math.ceil(math.sqrt(n[max_user]))
+                # n[max_user] -= 3
+                n[max_user] -= math.ceil(n[max_user]*0.02)
         return n
 
 
-def main():
-    # # Example 1
-    # users = {'A': 1, 'B': 2, 'C': 1}
-    # resources = {'R1': 100, 'R2': 150}
-    # incidence_matrix = np.array([
-    #     [1, 1],  # User A uses R1 and R2
-    #     [1, 0],  # User B uses R1
-    #     [0, 1]   # User C uses R2
-    # ])
-
-    # Example 2
-    RTTs = [3, 1, 0.1] # Physical Situation, RTT scale down
-    resources = {'R1': 10, 'R2': 4, 'R3': 1}
-    incidence_matrix = np.array([
-        [1, 0, 0],  # User A uses R1
-        [1, 1, 0],  # User B uses R1, R2
-        [0, 1, 1]   # User C uses R2, R3
-    ])
-
-    ideal_weights = [10, 1, 1]
-    goal = waterfilling(ideal_weights, resources, incidence_matrix)
-    print(f"GOAL: {goal}")
-
-
-    world_model = WorldModel(RTTs, resources, incidence_matrix)  
-    optimizer = Optimizer(resources, incidence_matrix, ideal_weights)
-
-    n = [80,10,10] # Initial Connections
-    sim_length = 2000
-
-    throughputs = []
-    for i in range(sim_length):
-        print(f"n: {n}")
-        throughput = world_model.tput(n)
-        throughputs.append(throughput)
-        print(throughput)
-        n = optimizer.update(throughput, n)
-
+def display(throughputs, goal):
+    """
+    supported values are '-', '--', '-.', ':', 'None', ' ', '', 'solid', 'dashed', 'dashdot', 'dotted'
+    """    
     # Display the throughputs as three separate lines on a curve
-    # As well as the GOAL throughputs as horizontal lines
-    import matplotlib.pyplot as plt
-    plt.plot(throughputs)
+    plt.plot(throughputs, marker='o', linestyle='None', markersize=0.5)
     
-    # Plot horizontal line at y=9 
-    print(goal)
-    plt.axhline(y=goal[0], color='r', linestyle='-', label='A Goal')
-    plt.axhline(y=goal[1], color='r', linestyle='-', label='B Goal')
-    # plt.axhline(y=goal[2], color='r', linestyle='-', label='C Goal')
+    # As well as the expected throughputs
+    for i in range(len(goal)):
+        plt.axhline(y=goal[i], color=f'C{i}', linestyle=':', label='Goal {i}')
 
     plt.show()
+
+def regret(throughputs, actual):
+    def error(throughput, actual):
+        """
+        Euclidean distance between throughput vector and actual vector
+        """
+        return math.sqrt(sum((throughput[i] - actual[i])**2 for i in range(len(throughput))))
+    
+    # Sum of errors for each slice in throughputs, comparing throughputs[i] to actual
+    return sum(error(throughputs[i], actual) for i in range(len(throughputs)))
+
+
+def simulate(WorldModel, optimizer, expected_throughputs):
+    print("Starting Simulation")
+
+    # Initialize Number of Connections
+    n = [1,1,1]
+    optimizer.set_decision(n)
+
+    # Run the simulation for 2000 iterations
+    throughput_history = []
+    for i in range(2000):
+        print(f"\n### Iteration: {i} ###")
+
+        # 1. WorldModel maps n -> tput.
+        throughput = WorldModel.tput(n)
+        throughput_history.append(throughput)
+        print("Throughput: ", throughput)
+
+        # 2. Optimizer maps tput -> n.
+        n = optimizer.update(throughput)
+        optimizer.set_decision(n)
+
+        print(f"outside n: {n}")
+    
+    display(throughput_history, list(expected_throughputs.values()))
+    regret_value = regret(throughput_history, list(expected_throughputs.values()))
+    print(f"regret_value: {regret_value}")
+
+
+def main():
+    pass
+
 
 if __name__ == "__main__":
     main()
