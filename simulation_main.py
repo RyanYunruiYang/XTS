@@ -27,11 +27,23 @@ class WorldModel:
                 j = list(resource_capacities.keys()).index(resource)
                 self.incidence_matrix[i][j] = 1
 
+        self.callback = None
+
+    def register_callback(self, callback):
+        self.callback = callback
+
+    def run(self, init_n, n_rounds = 1000):
+        n = init_n.copy()
+        for i in range(n_rounds):
+            print(f"\n### Iteration: {i} ###")
+            tput = self.tput(n)
+            n = self.callback(tput).copy()
+
     def tput(self, n):
         # debug(f"n: {n}")
         # debug(f"Weights: {weights}")
         # debug(f"Resources: {self.resources}")
-        # debug(f"Incidence Matrix: {self.incidence_matrix}")  
+        # debug(f"Incidence Matrix: {self.incidence_matrix}")
         weights = [n[i]/self.users[i].RTT for i in range(len(n))]
         return waterfilling(weights, self.resources, self.incidence_matrix)
 
@@ -53,7 +65,7 @@ class Optimizer:
 
     def set_decision(self, decision):
         self.n = decision
-    
+
     def get_decision(self):
         return self.n
 
@@ -89,10 +101,10 @@ class Optimizer:
 def display(throughputs, goal):
     """
     supported values are '-', '--', '-.', ':', 'None', ' ', '', 'solid', 'dashed', 'dashdot', 'dotted'
-    """    
+    """
     # Display the throughputs as three separate lines on a curve
     plt.plot(throughputs, marker='o', linestyle='None', markersize=0.5)
-    
+
     # As well as the expected throughputs
     for i in range(len(goal)):
         plt.axhline(y=goal[i], color=f'C{i}', linestyle=':', label='Goal {i}')
@@ -105,12 +117,12 @@ def regret(throughputs, actual):
         Euclidean distance between throughput vector and actual vector
         """
         return math.sqrt(sum((throughput[i] - actual[i])**2 for i in range(len(throughput))))
-    
+
     # Sum of errors for each slice in throughputs, comparing throughputs[i] to actual
     return sum(error(throughputs[i], actual) for i in range(len(throughputs)))
 
 
-def simulate(WorldModel, optimizer, expected_throughputs):
+def simulate(world, optimizer, expected_throughputs):
     print("Starting Simulation")
 
     # Initialize Number of Connections
@@ -119,11 +131,9 @@ def simulate(WorldModel, optimizer, expected_throughputs):
 
     # Run the simulation for 2000 iterations
     throughput_history = []
-    for i in range(2000):
-        print(f"\n### Iteration: {i} ###")
 
+    def xts_callback(throughput):
         # 1. WorldModel maps n -> tput.
-        throughput = WorldModel.tput(n)
         throughput_history.append(throughput)
         print("Throughput: ", throughput)
 
@@ -132,7 +142,13 @@ def simulate(WorldModel, optimizer, expected_throughputs):
         optimizer.set_decision(n)
 
         print(f"outside n: {n}")
-    
+        return n
+
+    world.register_callback(xts_callback)
+
+    world.run(n)
+
+
     display(throughput_history, list(expected_throughputs.values()))
     regret_value = regret(throughput_history, list(expected_throughputs.values()))
     print(f"regret_value: {regret_value}")

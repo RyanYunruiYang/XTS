@@ -22,7 +22,7 @@ def test_0():
 
     wm = WorldModel(users, resource_capacities)
     optimizer = Optimizer(users, list(resource_capacities.keys()), operator_weights)
-    simulate(WorldModel=wm, optimizer=optimizer, expected_throughputs=expected_throughputs)
+    simulate(world=wm, optimizer=optimizer, expected_throughputs=expected_throughputs)
 
 def test_1():
     users = [
@@ -46,7 +46,7 @@ def test_1():
 
     wm = WorldModel(users, resource_capacities)
     optimizer = Optimizer(users, list(resource_capacities.keys()), operator_weights)
-    simulate(WorldModel=wm, optimizer=optimizer, expected_throughputs=expected_throughputs)
+    simulate(world=wm, optimizer=optimizer, expected_throughputs=expected_throughputs)
 
 
 def test_2():
@@ -70,7 +70,7 @@ def test_2():
 
     wm = WorldModel(users, resource_capacities)
     optimizer = Optimizer(users, list(resource_capacities.keys()), operator_weights)
-    simulate(WorldModel=wm, optimizer=optimizer, expected_throughputs=expected_throughputs)
+    simulate(world=wm, optimizer=optimizer, expected_throughputs=expected_throughputs)
 
 def test_3():
     users = [
@@ -93,7 +93,7 @@ def test_3():
 
     wm = WorldModel(users, resource_capacities)
     optimizer = Optimizer(users, list(resource_capacities.keys()), operator_weights)
-    simulate(WorldModel=wm, optimizer=optimizer, expected_throughputs=expected_throughputs)
+    simulate(world=wm, optimizer=optimizer, expected_throughputs=expected_throughputs)
 
 def main():
     test_3()
