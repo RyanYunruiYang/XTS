@@ -133,7 +133,7 @@ def test_medium():
 
     users = [
         # Each flow's Name, RTT, and Resources Used:
-        Flow("A", 10, ["R1"]),
+        Flow("A", 10, ["R1"]), # Blue
         Flow("B", 1, ["R1", "R2"]),
         Flow("C", 0.5, ["R2"]),
         Flow("D", 2, ["R3"]),
@@ -149,7 +149,7 @@ def test_medium():
         Flow("N", 1, ["R9", "R10"]),
         Flow("O", 0.5, ["R10"]),
         Flow("P", 2, ["R1"]),
-        Flow("Q", 1, ["R1", "R2"]),
+        Flow("Q", 1, ["R1", "R2"]), # Brown
         Flow("R", 0.5, ["R2"]),
         Flow("S", 2, ["R3"]),
         Flow("T", 1, ["R3", "R4"]),
@@ -167,6 +167,18 @@ def test_medium():
         'R9': 100,
         'R10': 10,
     }
+    # resource_capacities = {
+    #     'R1': 50,
+    #     'R2': 40,
+    #     'R3': 1000,
+    #     'R4': 10,
+    #     'R5': 20,
+    #     'R6': 15,
+    #     'R7': 400,
+    #     'R8': 10,
+    #     'R9': 30,
+    #     'R10': 200,
+    # }
 
     operator_weights = [1 for _ in users]
     expected_throughputs = waterfilling([1 for _ in users], resource_capacities, [[1 if resource in user.resources_used else 0 for resource in resource_capacities] for user in users])

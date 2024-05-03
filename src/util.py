@@ -70,6 +70,10 @@ def waterfilling(weights, resources, incidence_matrix):
 
 # Stochastic Rounding of any number into floor(x) and ceil(x) 
 def stochastic_round(x):
+    """
+    Samples from a disribution that always returns floor(x) or ceil(x)
+    with mean x.
+    """
     floor_x = int(x)
     ceil_x = floor_x + 1
     if (random.random() < (x - floor_x)):
